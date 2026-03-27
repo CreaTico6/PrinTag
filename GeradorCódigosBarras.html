@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Código de Barras - Farmácia Estação</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .print-only {
+            display: none;
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        @media print {
+            /* --- NOVA ABORDAGEM DE POSICIONAMENTO --- */
+            
+            /* 1. Reset de elementos base para evitar interferências */
+            html, body {
+                height: auto;
+                width: auto;
+            }
+
+            /* 2. Esconde tudo por defeito */
+            body * {
+                visibility: hidden;
+            }
+            
+            /* 3. Mostra apenas o nosso contentor e o que está dentro */
+            #barcodes-container-wrapper, #barcodes-container-wrapper * {
+                visibility: visible;
+            }
+
+            /* 4. Força o contentor a posicionar-se no topo da página */
+            #barcodes-container-wrapper {
+                position: absolute;
+                top: 10mm; /* Margem explícita de 1cm do topo */
+                left: 0;
+                width: 100%;
+            }
+
+            /* 5. Garante que os itens dentro se comportam como blocos verticais */
+            .print-title-block, .barcode-item {
+                display: block;
+                text-align: center;
+                margin-bottom: 7mm; /* Espaçamento manual entre itens */
+                page-break-inside: avoid;
+            }
+            
+            /* Remove a necessidade do display:contents */
+            #barcodes-container {
+                display: block;
+            }
+
+            .print-only {
+                display: block;
+            }
+            
+            /* Estilos de texto (inalterados) */
+            .print-title-block > * {
+                margin: 0;
+                padding: 0;
+            }
+            .print-title-block h1 {
+                font-size: 16pt;
+                font-weight: bold;
+            }
+            .print-title-block .subtitle {
+                font-size: 9pt;
+                color: #888;
+                margin-top: 1mm;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen py-10">
+    <div class="w-full max-w-md mx-auto bg-white rounded-xl shadow-lg p-8 space-y-6">
+        
+        <header class="text-center">
+            <h1 class="text-3xl font-bold text-teal-600">Farmácia Estação - Porto</h1>
+            <p class="text-gray-600 mt-2">Gerador de Códigos de Barras</p>
+        </header>
+
+        <main>
+            <div class="space-y-4">
+                <div>
+                    <label for="label-input" class="block text-sm font-medium text-gray-700 mb-1">Identificação:</label>
+                    <input type="text" id="label-input" placeholder="Ex: Paracetamol 500mg" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500">
+                </div>
+                <div>
+                    <label for="barcode-input" class="block text-sm font-medium text-gray-700 mb-1">Código de 7 dígitos:</label>
+                    <input type="text" id="barcode-input" maxlength="7" placeholder="Ex: 1234567" class="w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-teal-500 focus:border-teal-500">
+                    <p id="error-message" class="text-red-500 text-sm mt-1 h-4"></p>
+                </div>
+                <button id="generate-btn" class="w-full bg-teal-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 shadow-sm">
+                    Gerar e Adicionar Código
+                </button>
+            </div>
+        </main>
+
+        <section id="barcodes-container-wrapper" class="w-full p-4 border-2 border-dashed border-gray-200 rounded-lg min-h-[150px] hidden">
+            
+            <div class="print-only print-title-block">
+                <h1>Farmácia Estação - Porto</h1>
+                <p class="subtitle">made by: TicoSoft</p>
+            </div>
+
+            <div id="barcodes-container" class="flex flex-wrap gap-4 justify-center">
+                </div>
+        </section>
+        
+        <footer id="action-buttons" class="hidden space-y-3">
+             <button id="print-btn" class="w-full bg-gray-700 text-white font-semibold py-2 px-4 rounded-md hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 shadow-sm">
+                Imprimir Todos
+            </button>
+            <button id="clear-btn" class="w-full bg-red-600 text-white font-semibold py-2 px-4 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-sm">
+                Limpar Tudo
+            </button>
+        </footer>
+
+    </div>
+
+    <p class="text-center text-xs text-gray-400 mt-6">criado por ticosoft</p>
+
+    <script>
+        // O JavaScript permanece o mesmo da última versão estável
+        document.addEventListener('DOMContentLoaded', () => {
+            const labelInput = document.getElementById('label-input');
+            const barcodeInput = document.getElementById('barcode-input');
+            const generateBtn = document.getElementById('generate-btn');
+            const printBtn = document.getElementById('print-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const barcodesContainerWrapper = document.getElementById('barcodes-container-wrapper');
+            const barcodesContainer = document.getElementById('barcodes-container');
+            const actionButtons = document.getElementById('action-buttons');
+            const errorMessage = document.getElementById('error-message');
+
+            const addBarcode = () => {
+                const labelValue = labelInput.value.trim();
+                const barcodeValue = barcodeInput.value;
+                errorMessage.textContent = '';
+
+                if (labelValue === "") {
+                    errorMessage.textContent = 'Por favor, insira uma identificação.';
+                    labelInput.focus();
+                    return;
+                }
+                if (!/^\d{7}$/.test(barcodeValue)) {
+                    errorMessage.textContent = 'Por favor, insira exatamente 7 dígitos no código.';
+                    barcodeInput.focus();
+                    return;
+                }
+
+                barcodesContainerWrapper.classList.remove('hidden');
+                actionButtons.classList.remove('hidden');
+                
+                const barcodeItem = document.createElement('div');
+                barcodeItem.className = 'barcode-item text-center flex flex-col items-center';
+                
+                const labelElement = document.createElement('p');
+                labelElement.textContent = labelValue;
+                labelElement.className = 'text-sm font-semibold mb-1';
+                barcodeItem.appendChild(labelElement);
+
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                barcodeItem.appendChild(svg);
+                
+                barcodesContainer.appendChild(barcodeItem);
+
+                try {
+                    JsBarcode(svg, barcodeValue, {
+                        format: "CODE128",
+                        displayValue: true,
+                        fontSize: 18,
+                        margin: 10,
+                        width: 1.8,
+                        height: 80,
+                    });
+                    
+                    labelInput.value = '';
+                    barcodeInput.value = '';
+                    labelInput.focus();
+                } catch (e) {
+                    console.error('Erro ao gerar código de barras:', e);
+                    errorMessage.textContent = 'Erro ao gerar o código de barras.';
+                    barcodesContainer.removeChild(barcodeItem);
+                }
+            };
+
+            const clearAllBarcodes = () => {
+                barcodesContainer.innerHTML = '';
+                barcodesContainerWrapper.classList.add('hidden');
+                actionButtons.classList.add('hidden');
+                errorMessage.textContent = '';
+                labelInput.focus();
+            };
+
+            const handlePrint = () => {
+                window.print();
+            };
+
+            generateBtn.addEventListener('click', addBarcode);
+            barcodeInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    addBarcode();
+                }
+            });
+            printBtn.addEventListener('click', handlePrint);
+            clearBtn.addEventListener('click', clearAllBarcodes);
+        });
+    </script>
+</body>
+</html>
